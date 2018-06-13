@@ -8,6 +8,12 @@
 
 import UIKit
 
+enum splitTweetToPartStatus: Int {
+    case error = -1
+    case failed
+    case succeed
+}
+
 class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource  {
 
     @IBOutlet weak var mainView: UIView!
@@ -44,29 +50,24 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     @IBAction func sendButtonPress(_ sender: Any) {
         let inputString = inputTextView.text
         if (inputString?.count)! > 49 {
-            var subStringArr: Array<String> = []
-            var subStringAdd = ""
-            let inputSplipArr = inputString?.split(separator: " ")
-            for splipString in inputSplipArr! {
-                if splipString.count > 46 {
-                    let alertView = UIAlertController(title: "Alert", message: "Tweet trên là 1 chuỗi span of nonwhite space character > 50", preferredStyle: UIAlertControllerStyle.alert)
+            var statusSplit: Int = -2
+            for maxLenghtOfNumberPart in 1 ..< 50/2 { //for 1 ..< 25 because currentPart/maxPart < 50 character
+                statusSplit = self.splipStringMaxCharSlip(inputString!, maxLenghtOfNumberPart)
+                if statusSplit == splitTweetToPartStatus.error.rawValue {
+                    let alertView = UIAlertController(title: "Alert", message: "Tweet trên là 1 chuỗi span of nonwhite space character", preferredStyle: UIAlertControllerStyle.alert)
                     alertView.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
                     self.present(alertView, animated: true, completion: nil)
                     return;
-                }
-                let teampString = subStringAdd + " \(splipString)"
-                if teampString.count > 46 {
-                    subStringArr.append(String(subStringAdd))
-                    subStringAdd = " \(splipString)"
-                } else {
-                    subStringAdd = teampString;
+                } else if statusSplit == splitTweetToPartStatus.succeed.rawValue {
+                    break
                 }
             }
-            subStringArr.append(String(subStringAdd))
-            var intdex: Int = 1
-            for subString in subStringArr {
-                dataSource.append(String("\(intdex)/\(subStringArr.count)\(subString)"))
-                intdex += 1;
+            
+            if statusSplit == splitTweetToPartStatus.failed.rawValue {
+                let alertView = UIAlertController(title: "Alert", message: "Tweet trên don't split to parts", preferredStyle: UIAlertControllerStyle.alert)
+                alertView.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+                self.present(alertView, animated: true, completion: nil)
+                return;
             }
         } else if (inputString?.count)! > 0 {
             dataSource.append(inputString!)
@@ -82,13 +83,48 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         tweetTableView.reloadData()
     }
     
+    func splipStringMaxCharSlip(_ tweet: String, _ number: Int) -> Int {
+        var subStringArr: Array<String> = []
+        let inputSplipArr = tweet.split(separator: " ")
+        var subStringAdd: String = ""
+        var currentIndex: Int = 1
+
+        for splipString in inputSplipArr {
+            let lenghtOfCurrentIndex = "\(currentIndex)".count
+            let lenghtOfPartAdd: Int = lenghtOfCurrentIndex + number + 1
+            
+            if lenghtOfCurrentIndex > number || lenghtOfPartAdd > 49 {
+                return splitTweetToPartStatus.failed.rawValue
+            }
+            
+            if splipString.count + lenghtOfPartAdd > 49 {
+                return splitTweetToPartStatus.error.rawValue;
+            }
+            
+            let teampString = subStringAdd + " \(splipString)"
+            if teampString.count + lenghtOfPartAdd > 49 {
+                subStringArr.append(String(subStringAdd))
+                subStringAdd = " \(splipString)"
+                currentIndex += 1
+            } else {
+                subStringAdd = teampString;
+            }
+        }
+        subStringArr.append(String(subStringAdd))
+        var intdex: Int = 1
+        for subString in subStringArr {
+            dataSource.append(String("\(intdex)/\(subStringArr.count)\(subString)"))
+            intdex += 1;
+        }
+        return splitTweetToPartStatus.succeed.rawValue
+    }
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return dataSource.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "tweetCell", for: indexPath) as! TweetTableViewCell
-//        cell.textLabel?.text = "Section \(indexPath.section) Row \(indexPath.row)"
         let tweetString = dataSource[indexPath.row]
         cell.tweetLable.text = tweetString
         cell.countLable.text = "\(tweetString.count)"
